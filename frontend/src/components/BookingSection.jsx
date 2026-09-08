@@ -1,0 +1,272 @@
+import { useState } from 'react';
+import { Video, MapPin, Calendar, CheckCircle2, ArrowRight, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+export default function BookingSection({
+    experts = [],
+    selectedExpert = '',
+    setSelectedExpert = () => { },
+    isLoggedIn = false,
+    onRequireLogin = () => { },
+}) {
+    const [bookingType, setBookingType] = useState('virtual');
+    const [selectedDate, setSelectedDate] = useState('');
+    const [selectedTime, setSelectedTime] = useState('');
+    const [address, setAddress] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [statusMessage, setStatusMessage] = useState(null); // { type: 'success' | 'error', text: string }
+
+    const timeSlots = ['10:00 AM', '12:30 PM', '03:30 PM', '06:00 PM'];
+
+    const handleBookingSubmit = async (e) => {
+        e.preventDefault();
+        setStatusMessage(null);
+
+        // Check if user is logged in
+        if (!isLoggedIn) {
+            onRequireLogin();
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            onRequireLogin();
+            return;
+        }
+
+        setLoading(true);
+
+        const amount = bookingType === 'virtual' ? 1000 : 1500;
+
+        try {
+            const res = await fetch(`${API_URL}/api/booking/create`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    serviceType: bookingType,
+                    expertRole: selectedExpert,
+                    amount,
+                    date: selectedDate,
+                    time: selectedTime,
+                    address: bookingType === 'onsite' ? address : undefined,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Failed to complete booking');
+            }
+
+            setStatusMessage({
+                type: 'success',
+                text: `Booking Confirmed! An expert will connect with you on ${selectedDate} at ${selectedTime}.`,
+            });
+
+            // Reset form
+            setSelectedDate('');
+            setSelectedTime('');
+            setAddress('');
+        } catch (err) {
+            setStatusMessage({
+                type: 'error',
+                text: err.message || 'Booking submission failed. Please try again.',
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <section id="booking" className="py-20 relative">
+            <div className="max-w-xl mx-auto px-4 sm:px-6">
+                <div className="bg-white border border-slate-200 rounded-3xl shadow-xl shadow-slate-200/60 p-6 sm:p-8 relative">
+
+                    <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                        <div>
+                            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Online Appointment</span>
+                            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Book an IT Expert</h2>
+                        </div>
+                        {!isLoggedIn && (
+                            <button
+                                type="button"
+                                onClick={onRequireLogin}
+                                className="text-[11px] font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200 flex items-center gap-1 transition-colors"
+                            >
+                                <Lock className="w-3 h-3" /> Login Required
+                            </button>
+                        )}
+                    </div>
+
+                    {statusMessage && (
+                        <div
+                            className={`mb-6 p-4 rounded-2xl flex items-start gap-3 text-sm ${statusMessage.type === 'success'
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                                }`}
+                        >
+                            {statusMessage.type === 'success' ? (
+                                <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                            ) : (
+                                <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                            )}
+                            <span className="leading-snug">{statusMessage.text}</span>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleBookingSubmit} className="space-y-6">
+
+                        {/* Service Type Selection */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                                1. Select Service Type
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setBookingType('virtual')}
+                                    className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between ${bookingType === 'virtual'
+                                        ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900'
+                                        : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
+                                        }`}
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between w-full mb-2">
+                                            <Video className={`w-5 h-5 ${bookingType === 'virtual' ? 'text-sky-600' : 'text-slate-400'}`} />
+                                            {bookingType === 'virtual' && <CheckCircle2 className="w-4 h-4 text-sky-600" />}
+                                        </div>
+                                        <div className="font-semibold text-sm">Virtual Call Support</div>
+                                        <div className="text-xs text-slate-500 mt-0.5">Online HD Video Meeting</div>
+                                    </div>
+                                    <div className="mt-3 text-base font-extrabold text-slate-900">৳ 1,000 <span className="text-[10px] font-normal text-slate-500">/ Fixed</span></div>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setBookingType('onsite')}
+                                    className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between ${bookingType === 'onsite'
+                                        ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900'
+                                        : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
+                                        }`}
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between w-full mb-2">
+                                            <MapPin className={`w-5 h-5 ${bookingType === 'onsite' ? 'text-sky-600' : 'text-slate-400'}`} />
+                                            {bookingType === 'onsite' && <CheckCircle2 className="w-4 h-4 text-sky-600" />}
+                                        </div>
+                                        <div className="font-semibold text-sm">On-Site Office Visit</div>
+                                        <div className="text-xs text-slate-500 mt-0.5">Technician visits office</div>
+                                    </div>
+                                    <div className="mt-3 text-base font-extrabold text-slate-900">৳ 1,500 <span className="text-[10px] font-normal text-slate-500">/ Fixed</span></div>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Specialty Dropdown */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                2. Select Required IT Specialty / Expert
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={selectedExpert}
+                                    onChange={(e) => setSelectedExpert(e.target.value)}
+                                    className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all cursor-pointer appearance-none"
+                                >
+                                    {experts?.map((exp) => (
+                                        <option key={exp.id || exp.role} value={exp.role}>
+                                            {exp.role} ({exp.experience})
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3.5 top-3.5 pointer-events-none text-slate-400 text-xs">
+                                    ▼
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Address Field */}
+                        {bookingType === 'onsite' && (
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                    Full Office Address
+                                </label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g., Level 4, Road 12, Dhanmondi, Dhaka"
+                                        value={address}
+                                        onChange={(e) => setAddress(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Date & Time */}
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                    3. Select Date
+                                </label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                                    <input
+                                        type="date"
+                                        required
+                                        value={selectedDate}
+                                        onChange={(e) => setSelectedDate(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                    Select Available Time
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {timeSlots.map((slot) => (
+                                        <button
+                                            key={slot}
+                                            type="button"
+                                            onClick={() => setSelectedTime(slot)}
+                                            className={`py-2.5 px-3 text-xs font-semibold rounded-xl border transition-all ${selectedTime === slot
+                                                ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            {slot}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={loading || !selectedDate || !selectedTime || (bookingType === 'onsite' && !address)}
+                            className="w-full py-4 px-6 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-semibold rounded-2xl shadow-lg shadow-sky-600/20 transition-all flex items-center justify-center gap-2 group mt-6"
+                        >
+                            <span>
+                                {loading
+                                    ? 'Processing...'
+                                    : isLoggedIn
+                                        ? `Confirm Booking (${bookingType === 'virtual' ? '৳1,000' : '৳1,500'})`
+                                        : 'Login & Confirm Booking'}
+                            </span>
+                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    );
+}
