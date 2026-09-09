@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { X, LogIn, UserPlus, Mail, Lock, User, Phone, MapPin } from 'lucide-react';
 
+const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
+
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     const [isLogin, setIsLogin] = useState(true);
     const [formData, setFormData] = useState({
@@ -22,10 +24,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        if (!isLogin && !BD_PHONE_REGEX.test(formData.phone.trim())) {
+            setError('Phone number must be 11 digits starting with 013-019');
+            return;
+        }
+
         setLoading(true);
 
         const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
         try {
             const res = await fetch(`${API_URL}${endpoint}`, {
@@ -105,12 +113,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                                         type="text"
                                         name="phone"
                                         required
-                                        placeholder="+880 1700-000000"
+                                        placeholder="01700000000"
                                         value={formData.phone}
-                                        onChange={handleChange}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                                        pattern="01[3-9][0-9]{8}"
+                                        maxLength={11}
+                                        title="Phone number must be 11 digits starting with 013-019"
                                         className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                                     />
                                 </div>
+                                <p className="mt-1 text-[10px] text-slate-400">11 digits, starting with 013-019</p>
                             </div>
 
                             <div>

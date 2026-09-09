@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CheckCircle, X } from 'lucide-react';
 import { Header, Footer } from './components/HeaderFooter';
 import HeroAbout from './components/HeroAbout';
 import ExpertsSlider from './components/ExpertsSlider';
@@ -76,9 +77,20 @@ export default function App() {
     }
   });
 
-  const handleAuthSuccess = (userData) => {
+  const [toast, setToast] = useState(null);
+
+  const handleAuthSuccess = (userData, message) => {
     setUser(userData);
     setIsLoggedIn(true);
+    if (message) {
+      setToast({ message, type: 'success' });
+      setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  const handleUserUpdate = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
   const handleLogout = () => {
@@ -86,6 +98,8 @@ export default function App() {
     localStorage.removeItem('user');
     setUser(null);
     setIsLoggedIn(false);
+    setToast({ message: 'You have been logged out successfully.', type: 'info' });
+    setTimeout(() => setToast(null), 3000);
   };
 
   // Smooth Scroll Helper Function
@@ -99,9 +113,29 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans flex flex-col justify-between selection:bg-sky-500 selection:text-white">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-20 right-6 z-50 flex items-center gap-3 bg-white border border-emerald-200 shadow-2xl rounded-2xl px-5 py-3.5 text-slate-800 transition-all">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-xs text-slate-400 font-medium">Notification</p>
+            <p className="text-sm font-semibold text-slate-800">{toast.message}</p>
+          </div>
+          <button
+            onClick={() => setToast(null)}
+            className="ml-3 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <Header
         isLoggedIn={isLoggedIn}
+        user={user}
         onAccountClick={() => setIsProfileModalOpen(true)}
       >
         <a
@@ -124,10 +158,13 @@ export default function App() {
 
         {/* Booking Section */}
         <BookingSection
+          key={user?.id || 'guest'}
           experts={experts}
           selectedExpert={selectedExpert}
           setSelectedExpert={setSelectedExpert}
           isLoggedIn={isLoggedIn}
+          user={user}
+          onUserUpdate={handleUserUpdate}
           onRequireLogin={() => setIsProfileModalOpen(true)}
         />
       </main>
@@ -140,6 +177,7 @@ export default function App() {
         user={user}
         onAuthSuccess={handleAuthSuccess}
         onLogout={handleLogout}
+        onUserUpdate={handleUserUpdate}
       />
 
       {/* Footer */}

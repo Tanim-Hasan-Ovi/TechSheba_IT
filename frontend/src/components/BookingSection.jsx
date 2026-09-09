@@ -1,23 +1,41 @@
 import { useState } from 'react';
-import { Video, MapPin, Calendar, CheckCircle2, ArrowRight, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Video, MapPin, Calendar, CheckCircle2, ArrowRight, Lock, CheckCircle, AlertCircle, Phone } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
 
 export default function BookingSection({
     experts = [],
     selectedExpert = '',
     setSelectedExpert = () => { },
     isLoggedIn = false,
+    user = null,
+    onUserUpdate = () => { },
     onRequireLogin = () => { },
 }) {
     const [bookingType, setBookingType] = useState('virtual');
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedTime, setSelectedTime] = useState('');
-    const [address, setAddress] = useState('');
+    const [phone, setPhone] = useState(() => user?.phone || '');
+    const [address, setAddress] = useState(() => user?.address || '');
+
+    // Keep the form in sync when the saved profile changes elsewhere (e.g. edited in the profile modal).
+    // Adjusted during render (not an effect) so it applies before paint without an extra render pass.
+    const userContactKey = user ? `${user.phone || ''}|${user.address || ''}` : '';
+    const [syncedContactKey, setSyncedContactKey] = useState(userContactKey);
+    if (userContactKey !== syncedContactKey) {
+        setSyncedContactKey(userContactKey);
+        setPhone(user?.phone || '');
+        setAddress(user?.address || '');
+    }
+
     const [loading, setLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState(null); // { type: 'success' | 'error', text: string }
 
-    const timeSlots = ['10:00 AM', '12:30 PM', '03:30 PM', '06:00 PM'];
+    // On-site: 4 slots per day (9AM-3PM, every 2h) | Virtual: 1 slot per hour (9AM-4PM)
+    const onsiteSlots = ['9:00 AM', '11:00 AM', '1:00 PM', '3:00 PM'];
+    const virtualSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
+    const timeSlots = bookingType === 'onsite' ? onsiteSlots : virtualSlots;
 
     const handleBookingSubmit = async (e) => {
         e.preventDefault();
@@ -38,8 +56,36 @@ export default function BookingSection({
         setLoading(true);
 
         const amount = bookingType === 'virtual' ? 1000 : 1500;
+        const bookingPhone = phone.trim();
+        const bookingAddress = address.trim();
+
+        if (!BD_PHONE_REGEX.test(bookingPhone)) {
+            setStatusMessage({ type: 'error', text: 'Phone number must be 11 digits starting with 013-019' });
+            setLoading(false);
+            return;
+        }
 
         try {
+            const savedPhone = user?.phone || '';
+            const savedAddress = user?.address || '';
+            const profileAddress = bookingType === 'onsite' ? bookingAddress : savedAddress;
+            if (bookingPhone !== savedPhone || profileAddress !== savedAddress) {
+                const profileRes = await fetch(`${API_URL}/api/auth/update-profile`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ phone: bookingPhone, address: profileAddress }),
+                });
+                const profileData = await profileRes.json();
+                if (!profileRes.ok || !profileData.success) {
+                    throw new Error(profileData.message || 'Could not save your contact information');
+                }
+                localStorage.setItem('user', JSON.stringify(profileData.user));
+                onUserUpdate(profileData.user);
+            }
+
             const res = await fetch(`${API_URL}/api/booking/create`, {
                 method: 'POST',
                 headers: {
@@ -52,7 +98,8 @@ export default function BookingSection({
                     amount,
                     date: selectedDate,
                     time: selectedTime,
-                    address: bookingType === 'onsite' ? address : undefined,
+                    phone: bookingPhone,
+                    address: bookingType === 'onsite' ? bookingAddress : undefined,
                 }),
             });
 
@@ -128,7 +175,7 @@ export default function BookingSection({
                             <div className="grid grid-cols-2 gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => setBookingType('virtual')}
+                                    onClick={() => { setBookingType('virtual'); setSelectedTime(''); setPhone(user?.phone || phone); }}
                                     className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between ${bookingType === 'virtual'
                                         ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900'
                                         : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
@@ -147,7 +194,7 @@ export default function BookingSection({
 
                                 <button
                                     type="button"
-                                    onClick={() => setBookingType('onsite')}
+                                    onClick={() => { setBookingType('onsite'); setSelectedTime(''); setPhone(user?.phone || phone); setAddress(user?.address || ''); }}
                                     className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between ${bookingType === 'onsite'
                                         ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900'
                                         : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
@@ -179,7 +226,7 @@ export default function BookingSection({
                                 >
                                     {experts?.map((exp) => (
                                         <option key={exp.id || exp.role} value={exp.role}>
-                                            {exp.role} ({exp.experience})
+                                            {exp.role}
                                         </option>
                                     ))}
                                 </select>
@@ -187,6 +234,28 @@ export default function BookingSection({
                                     ▼
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Phone Field */}
+                        <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                                Contact Phone Number
+                            </label>
+                            <div className="relative">
+                                <Phone className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="tel"
+                                    required
+                                    placeholder="e.g., 01700000000"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                                    pattern="01[3-9][0-9]{8}"
+                                    maxLength={11}
+                                    title="Phone number must be 11 digits starting with 013-019"
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                                />
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-400">11 digits, starting with 013-019</p>
                         </div>
 
                         {/* Address Field */}
@@ -230,8 +299,11 @@ export default function BookingSection({
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
                                     Select Available Time
+                                    <span className="ml-2 normal-case font-normal text-slate-400">
+                                        ({bookingType === 'onsite' ? '4 slots/day · 9AM–4PM' : 'Hourly · 9AM–4PM'})
+                                    </span>
                                 </label>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <div className={`grid gap-2 ${bookingType === 'onsite' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-4 sm:grid-cols-4'}`}>
                                     {timeSlots.map((slot) => (
                                         <button
                                             key={slot}
@@ -252,7 +324,7 @@ export default function BookingSection({
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            disabled={loading || !selectedDate || !selectedTime || (bookingType === 'onsite' && !address)}
+                            disabled={loading || !phone.trim() || !selectedDate || !selectedTime || (bookingType === 'onsite' && !address.trim())}
                             className="w-full py-4 px-6 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-semibold rounded-2xl shadow-lg shadow-sky-600/20 transition-all flex items-center justify-center gap-2 group mt-6"
                         >
                             <span>

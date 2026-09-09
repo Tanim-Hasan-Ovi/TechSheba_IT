@@ -6,6 +6,8 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
+const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
+
 const getOAuthClient = () => {
     return new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 };
@@ -35,6 +37,10 @@ router.post('/signup', async (req, res) => {
 
         if (!name || !email || !password) {
             return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
+        }
+
+        if (phone && !BD_PHONE_REGEX.test(phone)) {
+            return res.status(400).json({ success: false, message: 'Phone number must be 11 digits starting with 013-019' });
         }
 
         const existingUser = await User.findOne({ email });
@@ -139,7 +145,47 @@ router.post('/google-login', async (req, res) => {
         });
     } catch (error) {
         console.error('Google Auth Error:', error);
-        res.status(400).json({ success: false, message: 'Google authentication failed' });
+        res.status(400).json({ success: false, message: error.message || 'Google authentication failed' });
+    }
+});
+
+// Update Profile (phone & address)
+router.put('/update-profile', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+    if (!token) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+        const phone = req.body.phone?.trim();
+        const address = req.body.address?.trim();
+        const updates = {};
+        const fieldsToRemove = {};
+
+        if (phone && !BD_PHONE_REGEX.test(phone)) {
+            return res.status(400).json({ success: false, message: 'Phone number must be 11 digits starting with 013-019' });
+        }
+
+        if (phone) updates.phone = phone;
+        else fieldsToRemove.phone = 1;
+        if (address) updates.address = address;
+        else fieldsToRemove.address = 1;
+
+        const user = await User.findByIdAndUpdate(
+            decoded.userId,
+            {
+                ...(Object.keys(updates).length && { $set: updates }),
+                ...(Object.keys(fieldsToRemove).length && { $unset: fieldsToRemove }),
+            },
+            { new: true }
+        );
+
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        res.status(200).json({ success: true, user: formatUserResponse(user) });
+    } catch (error) {
+        console.error('Update Profile Error:', error);
+        res.status(400).json({ success: false, message: error.message || 'Failed to update profile' });
     }
 });
 

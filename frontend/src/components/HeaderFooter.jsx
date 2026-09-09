@@ -1,6 +1,6 @@
 import { Headset, Phone, Mail, Globe, User } from 'lucide-react';
 
-export function Header({ children, onAccountClick, isLoggedIn }) {
+export function Header({ children, onAccountClick, isLoggedIn, user }) {
     return (
         <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/80">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -24,13 +24,26 @@ export function Header({ children, onAccountClick, isLoggedIn }) {
 
                     <button
                         onClick={onAccountClick}
-                        title={isLoggedIn ? "View Profile" : "Login"}
-                        className={`p-2 rounded-xl border transition-all flex items-center justify-center ${isLoggedIn
-                            ? 'bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        title={isLoggedIn ? `${user?.name || 'User'} (View Profile)` : "Login / Sign Up"}
+                        className={`transition-all rounded-full flex items-center justify-center ${isLoggedIn
+                            ? 'hover:ring-2 hover:ring-sky-400 p-0.5'
+                            : 'p-2 rounded-xl border bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                             }`}
                     >
-                        <User className="w-5 h-5" />
+                        {isLoggedIn && user?.avatar ? (
+                            <img
+                                src={user.avatar}
+                                alt={user.name || 'User'}
+                                referrerPolicy="no-referrer"
+                                className="w-8 h-8 rounded-full object-cover ring-2 ring-sky-500 shadow-sm transition-transform hover:scale-105"
+                            />
+                        ) : isLoggedIn && user?.name ? (
+                            <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-sky-300">
+                                {user.name[0].toUpperCase()}
+                            </div>
+                        ) : (
+                            <User className="w-5 h-5" />
+                        )}
                     </button>
                 </div>
             </div>

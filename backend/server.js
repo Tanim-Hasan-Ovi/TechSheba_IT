@@ -18,7 +18,7 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'TechSheba IT API is running' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
