@@ -25,12 +25,18 @@ export default function ExpertsSlider({ experts = [], onSelectExpert = () => { }
                                 <div className="relative mb-4">
                                     <img
                                         src={exp.image}
-                                        alt={exp.role}
-                                        className="w-full h-48 object-cover rounded-2xl"
+                                        alt={exp.name}
+                                        className="w-full h-56 object-cover object-top rounded-2xl"
                                     />
                                 </div>
                                 <h3 className="text-base font-bold text-slate-900 leading-snug">{exp.role}</h3>
+                                <p className="text-xs font-semibold text-sky-600 mt-1 uppercase tracking-wide">{exp.name}</p>
                                 <p className="text-xs font-medium text-slate-500 mt-1">{exp.experience}</p>
+                                {exp.serviceType && (
+                                    <span className="inline-block text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg mt-2">
+                                        {exp.serviceType}
+                                    </span>
+                                )}
 
                                 <div className="flex flex-wrap gap-1.5 mt-4">
                                     {exp.specialties?.map((item, idx) => (

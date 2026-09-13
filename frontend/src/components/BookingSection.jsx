@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Video, MapPin, Calendar, CheckCircle2, ArrowRight, Lock, CheckCircle, AlertCircle, Phone } from 'lucide-react';
+import { Video, MapPin, Calendar, CheckCircle2, ArrowRight, Lock, CheckCircle, AlertCircle, Phone, Briefcase } from 'lucide-react';
+import MockPaymentGateway from './MockPaymentGateway';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
+const SERVICE_PRICES = { virtual: 1000, onsite: 1500, commercial: 20000 };
 
 export default function BookingSection({
     experts = [],
@@ -31,11 +33,14 @@ export default function BookingSection({
 
     const [loading, setLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState(null); // { type: 'success' | 'error', text: string }
+    const [pendingPayment, setPendingPayment] = useState(null); // booking payload once ready for checkout
 
-    // On-site: 4 slots per day (9AM-3PM, every 2h) | Virtual: 1 slot per hour (9AM-4PM)
+    const needsAddress = bookingType === 'onsite' || bookingType === 'commercial';
+
+    // On-site/Commercial: 4 slots per day (9AM-3PM, every 2h) | Virtual: 1 slot per hour (9AM-4PM)
     const onsiteSlots = ['9:00 AM', '11:00 AM', '1:00 PM', '3:00 PM'];
     const virtualSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
-    const timeSlots = bookingType === 'onsite' ? onsiteSlots : virtualSlots;
+    const timeSlots = bookingType === 'virtual' ? virtualSlots : onsiteSlots;
 
     const handleBookingSubmit = async (e) => {
         e.preventDefault();
@@ -55,7 +60,6 @@ export default function BookingSection({
 
         setLoading(true);
 
-        const amount = bookingType === 'virtual' ? 1000 : 1500;
         const bookingPhone = phone.trim();
         const bookingAddress = address.trim();
 
@@ -68,7 +72,7 @@ export default function BookingSection({
         try {
             const savedPhone = user?.phone || '';
             const savedAddress = user?.address || '';
-            const profileAddress = bookingType === 'onsite' ? bookingAddress : savedAddress;
+            const profileAddress = needsAddress ? bookingAddress : savedAddress;
             if (bookingPhone !== savedPhone || profileAddress !== savedAddress) {
                 const profileRes = await fetch(`${API_URL}/api/auth/update-profile`, {
                     method: 'PUT',
@@ -86,38 +90,16 @@ export default function BookingSection({
                 onUserUpdate(profileData.user);
             }
 
-            const res = await fetch(`${API_URL}/api/booking/create`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    serviceType: bookingType,
-                    expertRole: selectedExpert,
-                    amount,
-                    date: selectedDate,
-                    time: selectedTime,
-                    phone: bookingPhone,
-                    address: bookingType === 'onsite' ? bookingAddress : undefined,
-                }),
+            // Open the checkout UI; the booking itself is only created once
+            // payment there completes (see MockPaymentGateway / mock-pay).
+            setPendingPayment({
+                serviceType: bookingType,
+                expertRole: selectedExpert,
+                date: selectedDate,
+                time: selectedTime,
+                phone: bookingPhone,
+                address: needsAddress ? bookingAddress : undefined,
             });
-
-            const data = await res.json();
-
-            if (!res.ok || !data.success) {
-                throw new Error(data.message || 'Failed to complete booking');
-            }
-
-            setStatusMessage({
-                type: 'success',
-                text: `Booking Confirmed! An expert will connect with you on ${selectedDate} at ${selectedTime}.`,
-            });
-
-            // Reset form
-            setSelectedDate('');
-            setSelectedTime('');
-            setAddress('');
         } catch (err) {
             setStatusMessage({
                 type: 'error',
@@ -126,6 +108,17 @@ export default function BookingSection({
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePaymentSuccess = (booking) => {
+        setPendingPayment(null);
+        setStatusMessage({
+            type: 'success',
+            text: `Booking Confirmed! An expert will connect with you on ${booking.date} at ${booking.time}.`,
+        });
+        setSelectedDate('');
+        setSelectedTime('');
+        setAddress('');
     };
 
     return (
@@ -172,12 +165,12 @@ export default function BookingSection({
                             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
                                 1. Select Service Type
                             </label>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <button
                                     type="button"
                                     onClick={() => { setBookingType('virtual'); setSelectedTime(''); setPhone(user?.phone || phone); }}
                                     className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between ${bookingType === 'virtual'
-                                        ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900'
+                                        ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900 animate-pop'
                                         : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
                                         }`}
                                 >
@@ -189,14 +182,17 @@ export default function BookingSection({
                                         <div className="font-semibold text-sm">Virtual Call Support</div>
                                         <div className="text-xs text-slate-500 mt-0.5">Online HD Video Meeting</div>
                                     </div>
-                                    <div className="mt-3 text-base font-extrabold text-slate-900">৳ 1,000 <span className="text-[10px] font-normal text-slate-500">/ Fixed</span></div>
+                                    <div className="mt-3 leading-tight">
+                                        <div className="text-base font-extrabold text-slate-900">৳ 1,000</div>
+                                        <div className="text-[10px] font-normal text-slate-500">Fixed</div>
+                                    </div>
                                 </button>
 
                                 <button
                                     type="button"
                                     onClick={() => { setBookingType('onsite'); setSelectedTime(''); setPhone(user?.phone || phone); setAddress(user?.address || ''); }}
                                     className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between ${bookingType === 'onsite'
-                                        ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900'
+                                        ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900 animate-pop'
                                         : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
                                         }`}
                                 >
@@ -208,7 +204,32 @@ export default function BookingSection({
                                         <div className="font-semibold text-sm">On-Site Office Visit</div>
                                         <div className="text-xs text-slate-500 mt-0.5">Technician visits office</div>
                                     </div>
-                                    <div className="mt-3 text-base font-extrabold text-slate-900">৳ 1,500 <span className="text-[10px] font-normal text-slate-500">/ Fixed</span></div>
+                                    <div className="mt-3 leading-tight">
+                                        <div className="text-base font-extrabold text-slate-900">৳ 1,500</div>
+                                        <div className="text-[10px] font-normal text-slate-500">Fixed</div>
+                                    </div>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setBookingType('commercial'); setSelectedTime(''); setPhone(user?.phone || phone); setAddress(user?.address || ''); }}
+                                    className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between ${bookingType === 'commercial'
+                                        ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-500/20 text-sky-900 animate-pop'
+                                        : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
+                                        }`}
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between w-full mb-2">
+                                            <Briefcase className={`w-5 h-5 ${bookingType === 'commercial' ? 'text-sky-600' : 'text-slate-400'}`} />
+                                            {bookingType === 'commercial' && <CheckCircle2 className="w-4 h-4 text-sky-600" />}
+                                        </div>
+                                        <div className="font-semibold text-sm">Commercial Support</div>
+                                        <div className="text-xs text-slate-500 mt-0.5">Business / enterprise IT support</div>
+                                    </div>
+                                    <div className="mt-3 leading-tight">
+                                        <div className="text-base font-extrabold text-slate-900">৳ 20,000</div>
+                                        <div className="text-[10px] font-normal text-slate-500">Starts from</div>
+                                    </div>
                                 </button>
                             </div>
                         </div>
@@ -259,10 +280,10 @@ export default function BookingSection({
                         </div>
 
                         {/* Address Field */}
-                        {bookingType === 'onsite' && (
+                        {needsAddress && (
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                                    Full Office Address
+                                    {bookingType === 'commercial' ? 'Full Business Address' : 'Full Office Address'}
                                 </label>
                                 <div className="relative">
                                     <MapPin className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
@@ -300,10 +321,10 @@ export default function BookingSection({
                                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
                                     Select Available Time
                                     <span className="ml-2 normal-case font-normal text-slate-400">
-                                        ({bookingType === 'onsite' ? '4 slots/day · 9AM–4PM' : 'Hourly · 9AM–4PM'})
+                                        ({bookingType === 'virtual' ? 'Hourly · 9AM–4PM' : '4 slots/day · 9AM–4PM'})
                                     </span>
                                 </label>
-                                <div className={`grid gap-2 ${bookingType === 'onsite' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-4 sm:grid-cols-4'}`}>
+                                <div className={`grid gap-2 ${bookingType === 'virtual' ? 'grid-cols-4 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-4'}`}>
                                     {timeSlots.map((slot) => (
                                         <button
                                             key={slot}
@@ -324,21 +345,32 @@ export default function BookingSection({
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            disabled={loading || !phone.trim() || !selectedDate || !selectedTime || (bookingType === 'onsite' && !address.trim())}
+                            disabled={loading || !phone.trim() || !selectedDate || !selectedTime || (needsAddress && !address.trim())}
                             className="w-full py-4 px-6 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-semibold rounded-2xl shadow-lg shadow-sky-600/20 transition-all flex items-center justify-center gap-2 group mt-6"
                         >
                             <span>
                                 {loading
-                                    ? 'Processing...'
+                                    ? 'Please wait...'
                                     : isLoggedIn
-                                        ? `Confirm Booking (${bookingType === 'virtual' ? '৳1,000' : '৳1,500'})`
-                                        : 'Login & Confirm Booking'}
+                                        ? `Proceed to Payment (${bookingType === 'virtual' ? '৳1,000' : bookingType === 'onsite' ? '৳1,500' : 'Starts from ৳20,000'})`
+                                        : 'Login & Proceed to Payment'}
                             </span>
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                     </form>
                 </div>
             </div>
+
+            <MockPaymentGateway
+                isOpen={Boolean(pendingPayment)}
+                amount={pendingPayment ? SERVICE_PRICES[pendingPayment.serviceType] : 0}
+                bookingPayload={pendingPayment}
+                onClose={() => {
+                    setPendingPayment(null);
+                    setStatusMessage({ type: 'error', text: 'Payment was cancelled. Your booking was not confirmed.' });
+                }}
+                onSuccess={handlePaymentSuccess}
+            />
         </section>
     );
 }

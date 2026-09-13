@@ -5,9 +5,11 @@ export function Header({ children, onAccountClick, isLoggedIn, user }) {
         <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/80">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="bg-sky-600 text-white p-2 rounded-xl shadow-md shadow-sky-600/20">
-                        <Headset className="w-5 h-5" />
-                    </div>
+                    <img
+                        src="/logo-icon.png"
+                        alt="TechSheba IT"
+                        className="w-9 h-9 rounded-xl object-cover shadow-md shadow-sky-600/20"
+                    />
                     <span className="text-xl font-bold tracking-tight text-slate-900">
                         TechSheba <span className="text-sky-600">IT</span>
                     </span>
@@ -82,7 +84,7 @@ export function Footer() {
                     <div>
                         <h4 className="text-sm font-semibold text-white mb-3">Contact Us</h4>
                         <ul className="space-y-2.5 text-xs">
-                            <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-sky-500" /> +880 1700-000000</li>
+                            <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-sky-500" /> +880 1601-776137</li>
                             <li className="flex items-center gap-2"><Mail className="w-4 h-4 text-sky-500" /> support@techshebait.com</li>
                             <li className="flex items-center gap-2"><Globe className="w-4 h-4 text-sky-500" /> Dhaka, Bangladesh</li>
                         </ul>

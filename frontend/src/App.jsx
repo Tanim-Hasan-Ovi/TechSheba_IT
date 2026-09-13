@@ -1,87 +1,129 @@
-import { useState } from 'react';
-import { CheckCircle, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckCircle, AlertCircle, X } from 'lucide-react';
 import { Header, Footer } from './components/HeaderFooter';
 import HeroAbout from './components/HeroAbout';
 import ExpertsSlider from './components/ExpertsSlider';
 import BookingSection from './components/BookingSection';
 import UserProfileModal from './components/UserProfileModal';
 
+const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function readStoredSession() {
+  try {
+    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    if (!token || !storedUser) return null;
+
+    const lastActive = Number(localStorage.getItem('lastActive'));
+    if (lastActive && Date.now() - lastActive > SESSION_TIMEOUT_MS) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('lastActive');
+      return null;
+    }
+
+    return JSON.parse(storedUser);
+  } catch (e) {
+    console.error('Failed to load session from localStorage', e);
+    return null;
+  }
+}
+
 export default function App() {
   // Full Experts Data with image & specialties
   const experts = [
     {
       id: 1,
-      role: 'Senior Network & Security Engineer',
-      experience: '6+ Years Exp.',
-      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
-      specialties: ['Cisco Routers', 'Firewall Setup', 'Server Maintenance'],
+      name: 'Mahmudul Hasan',
+      role: 'Hardware & Infrastructure Expert',
+      experience: '4+ Years Exp.',
+      image: 'https://res.cloudinary.com/dizzoonz/image/upload/v1789249077/hasan.jpg',
+      specialties: ['Office Networking', 'PC Repair', 'CCTV Setup'],
+      serviceType: 'Online + Offline',
     },
     {
       id: 2,
+      name: 'Tanvir Ahmed',
       role: 'Cloud & Database Specialist',
       experience: '5+ Years Exp.',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400',
+      image: 'https://res.cloudinary.com/dizzoonz/image/upload/v1789248100/Tanvir.jpg',
       specialties: ['AWS Cloud', 'Database Backup', 'System Security'],
+      serviceType: 'Online + Offline',
     },
     {
       id: 3,
-      role: 'Hardware & Infrastructure Expert',
-      experience: '4+ Years Exp.',
-      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400',
-      specialties: ['Office Networking', 'PC Repair', 'CCTV Setup'],
+      name: 'IFFTEKHER HOSSAIN MRIDA',
+      role: 'Senior Network & Security Engineer',
+      experience: '6+ Years Exp.',
+      image: 'https://res.cloudinary.com/dizzoonz/image/upload/v1789247692/Mrida.jpg',
+      specialties: ['Cisco Routers', 'Firewall Setup', 'Server Maintenance'],
+      serviceType: 'Online Only',
     },
     {
       id: 4,
+      name: 'Nayeem Chowdhury',
       role: 'Cyber Security Consultant',
       experience: '7+ Years Exp.',
-      image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400',
+      image: 'https://res.cloudinary.com/dizzoonz/image/upload/v1789250667/Nayem.jpg',
       specialties: ['Vulnerability Test', 'Data Protection', 'Ethical Hacking'],
+      serviceType: 'Online + Offline',
     },
     {
       id: 5,
+      name: 'Shafiqul Islam',
       role: 'DevOps & Linux Admin',
       experience: '5+ Years Exp.',
-      image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400',
+      image: 'https://res.cloudinary.com/dizzoonz/image/upload/v1789249252/Islam.jpg',
       specialties: ['Linux Servers', 'Docker & K8s', 'CI/CD Pipeline'],
+      serviceType: 'Online + Offline',
     },
     {
       id: 6,
+      name: 'Rafiqul Karim',
       role: 'VoIP & Telecom Specialist',
       experience: '4+ Years Exp.',
-      image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=400',
+      image: 'https://res.cloudinary.com/dizzoonz/image/upload/v1789250823/karim.jpg',
       specialties: ['IP PBX Systems', 'VoIP Setup', 'Network Telephony'],
+      serviceType: 'Online + Offline',
     },
   ];
 
   // Application States
   const [selectedExpert, setSelectedExpert] = useState(experts[0].role);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [user, setUser] = useState(() => {
-    try {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      if (storedToken && storedUser) {
-        return JSON.parse(storedUser);
-      }
-    } catch (e) {
-      console.error('Failed to load session from localStorage', e);
-    }
-    return null;
-  });
-
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    try {
-      return Boolean(localStorage.getItem('token') && localStorage.getItem('user'));
-    } catch {
-      return false;
-    }
-  });
+  const [user, setUser] = useState(() => readStoredSession());
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(user));
 
   const [toast, setToast] = useState(null);
+
+  // After SSLCommerz redirects back from the payment gateway, surface the
+  // outcome once, then strip the query params so a refresh doesn't repeat it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    if (!payment) return;
+
+    const outcomes = {
+      success: { type: 'success', message: 'Payment successful! Your booking is confirmed.' },
+      fail: { type: 'error', message: 'Payment failed. Please try booking again.' },
+      cancel: { type: 'error', message: 'Payment was cancelled. Your booking was not confirmed.' },
+    };
+    const outcome = outcomes[payment];
+    if (outcome) {
+      setToast(outcome);
+      setTimeout(() => setToast(null), 5000);
+    }
+
+    params.delete('payment');
+    params.delete('tran_id');
+    const query = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
+  }, []);
 
   const handleAuthSuccess = (userData, message) => {
     setUser(userData);
     setIsLoggedIn(true);
+    localStorage.setItem('lastActive', Date.now().toString());
     if (message) {
       setToast({ message, type: 'success' });
       setTimeout(() => setToast(null), 4000);
@@ -96,11 +138,46 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('lastActive');
     setUser(null);
     setIsLoggedIn(false);
     setToast({ message: 'You have been logged out successfully.', type: 'info' });
     setTimeout(() => setToast(null), 3000);
   };
+
+  // Sliding 24h inactivity timeout: any user activity resets the clock;
+  // if 24h pass with no activity (including not visiting the site), log out.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const updateLastActive = () => {
+      localStorage.setItem('lastActive', Date.now().toString());
+    };
+    updateLastActive();
+
+    let throttled = false;
+    const handleActivity = () => {
+      if (throttled) return;
+      throttled = true;
+      setTimeout(() => { throttled = false; }, 60000);
+      updateLastActive();
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    activityEvents.forEach((event) => window.addEventListener(event, handleActivity));
+
+    const inactivityCheck = setInterval(() => {
+      const lastActive = Number(localStorage.getItem('lastActive'));
+      if (lastActive && Date.now() - lastActive > SESSION_TIMEOUT_MS) {
+        handleLogout();
+      }
+    }, 60000);
+
+    return () => {
+      activityEvents.forEach((event) => window.removeEventListener(event, handleActivity));
+      clearInterval(inactivityCheck);
+    };
+  }, [isLoggedIn]);
 
   // Smooth Scroll Helper Function
   const scrollToBooking = (role = '') => {
@@ -115,9 +192,15 @@ export default function App() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans flex flex-col justify-between selection:bg-sky-500 selection:text-white">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-3 bg-white border border-emerald-200 shadow-2xl rounded-2xl px-5 py-3.5 text-slate-800 transition-all">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-            <CheckCircle className="w-5 h-5 text-emerald-600" />
+        <div className={`fixed top-20 right-6 z-50 flex items-center gap-3 bg-white border shadow-2xl rounded-2xl px-5 py-3.5 text-slate-800 transition-all ${toast.type === 'error' ? 'border-rose-200' : 'border-emerald-200'
+          }`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${toast.type === 'error' ? 'bg-rose-100' : 'bg-emerald-100'
+            }`}>
+            {toast.type === 'error' ? (
+              <AlertCircle className="w-5 h-5 text-rose-600" />
+            ) : (
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
+            )}
           </div>
           <div>
             <p className="text-xs text-slate-400 font-medium">Notification</p>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, LogIn, UserPlus, Mail, Lock, User as UserIcon, Phone, MapPin, CheckCircle, Calendar, Video, Clock, Pencil, Trash2, Plus } from 'lucide-react';
+import { X, LogIn, UserPlus, Mail, Lock, User as UserIcon, Phone, MapPin, CheckCircle, Calendar, Video, Clock, Pencil, Trash2, Plus, Briefcase } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -329,6 +329,8 @@ export default function UserProfileModal({
                                                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                                     {b.serviceType === 'virtual' ? (
                                                         <Video className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" />
+                                                    ) : b.serviceType === 'commercial' ? (
+                                                        <Briefcase className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
                                                     ) : (
                                                         <MapPin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                                                     )}
