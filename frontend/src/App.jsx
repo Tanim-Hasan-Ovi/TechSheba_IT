@@ -4,6 +4,7 @@ import { Header, Footer } from './components/HeaderFooter';
 import HeroAbout from './components/HeroAbout';
 import ExpertsSlider from './components/ExpertsSlider';
 import BookingSection from './components/BookingSection';
+import ReviewSection from './components/ReviewSection';
 import UserProfileModal from './components/UserProfileModal';
 
 const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -251,6 +252,9 @@ export default function App() {
           onUserUpdate={handleUserUpdate}
           onRequireLogin={() => setIsProfileModalOpen(true)}
         />
+
+        {/* Customer Reviews */}
+        <ReviewSection isLoggedIn={isLoggedIn} />
       </main>
 
       {/* User Profile / Auth Modal */}
