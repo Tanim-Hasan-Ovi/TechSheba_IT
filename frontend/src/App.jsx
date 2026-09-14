@@ -223,6 +223,7 @@ export default function App() {
       >
         <a
           href="#booking"
+          onClick={(e) => { e.preventDefault(); scrollToBooking(); }}
           className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all"
         >
           Book Service

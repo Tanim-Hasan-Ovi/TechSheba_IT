@@ -1,5 +1,10 @@
 import { Headset, Phone, Mail, Globe, User } from 'lucide-react';
 
+const handleNavClick = (e, id) => {
+    e.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+};
+
 export function Header({ children, onAccountClick, isLoggedIn, user }) {
     return (
         <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/80">
@@ -16,9 +21,9 @@ export function Header({ children, onAccountClick, isLoggedIn, user }) {
                 </div>
 
                 <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-                    <a href="#about" className="hover:text-sky-600 transition-colors">About Us</a>
-                    <a href="#experts" className="hover:text-sky-600 transition-colors">IT Experts</a>
-                    <a href="#booking" className="hover:text-sky-600 transition-colors">Book Now</a>
+                    <a href="#about" onClick={(e) => handleNavClick(e, 'about')} className="hover:text-sky-600 transition-colors">About Us</a>
+                    <a href="#experts" onClick={(e) => handleNavClick(e, 'experts')} className="hover:text-sky-600 transition-colors">IT Experts</a>
+                    <a href="#booking" onClick={(e) => handleNavClick(e, 'booking')} className="hover:text-sky-600 transition-colors">Book Now</a>
                 </nav>
 
                 <div className="flex items-center gap-3">
@@ -75,9 +80,9 @@ export function Footer() {
                     <div>
                         <h4 className="text-sm font-semibold text-white mb-3">Quick Links</h4>
                         <ul className="space-y-2 text-xs">
-                            <li><a href="#about" className="hover:text-sky-400 transition-colors">About Us</a></li>
-                            <li><a href="#experts" className="hover:text-sky-400 transition-colors">Our Expert Team</a></li>
-                            <li><a href="#booking" className="hover:text-sky-400 transition-colors">Book Appointment</a></li>
+                            <li><a href="#about" onClick={(e) => handleNavClick(e, 'about')} className="hover:text-sky-400 transition-colors">About Us</a></li>
+                            <li><a href="#experts" onClick={(e) => handleNavClick(e, 'experts')} className="hover:text-sky-400 transition-colors">Our Expert Team</a></li>
+                            <li><a href="#booking" onClick={(e) => handleNavClick(e, 'booking')} className="hover:text-sky-400 transition-colors">Book Appointment</a></li>
                         </ul>
                     </div>
 

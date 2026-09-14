@@ -49,7 +49,7 @@ export default function ExpertsSlider({ experts = [], onSelectExpert = () => { }
 
                             <a
                                 href="#booking"
-                                onClick={() => onSelectExpert(exp.role)}
+                                onClick={(e) => { e.preventDefault(); onSelectExpert(exp.role); }}
                                 className="mt-6 w-full py-2.5 bg-slate-50 hover:bg-sky-50 text-sky-700 border border-slate-200 hover:border-sky-200 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
                             >
                                 <span>Select Expert</span>
